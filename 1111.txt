@@ -1,0 +1,78 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Helpers;
+using System.Web.Mvc;
+using System.Web.UI.WebControls;
+using GuoPuO2O.Entity.Api;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using System.Configuration;
+namespace GuoPuO2O.WebAppService.Controllers
+{
+    public class BaseController : Controller
+    {
+        //图片域服务器地址
+        protected static readonly string ImageDomin = ConfigurationManager.AppSettings["ImageUrl"];
+        
+
+        protected override void OnActionExecuting(ActionExecutingContext filterContext)
+        {
+            var methodInfo = ((ReflectedActionDescriptor)filterContext.ActionDescriptor).MethodInfo;
+            foreach (var p in methodInfo.GetParameters())
+            {
+                if (p.ParameterType.IsValueType && filterContext.ActionParameters[p.Name] == null)
+                {
+                    filterContext.ActionParameters[p.Name] = Activator.CreateInstance(p.ParameterType);//为参赛设定默认值
+                }
+            }
+        }
+        public JsonResult ErrorJsonResult(string msg)
+        {
+            return Json(new BaseResult() {  Message = msg, Result = string.Empty }, JsonRequestBehavior.AllowGet);
+        }
+        public JsonResult SuccessJsonResult()
+        {
+            return SuccessJsonResult(new { });
+        }
+        public JsonResult SuccessJsonResult(object result)
+        {
+            if (result == null)
+            {
+                result = new { };
+            }
+            return Json(new BaseResult() { Message = string.Empty, Result = result }, JsonRequestBehavior.AllowGet);
+        }
+        public ContentResult SuccessContentResult(string result)
+        {
+            // 如果传入的result json是一个数组则将这个数组装入一个对象的Items属性中，便于接口调用者对json对象的解析
+            if (result.IndexOf('[', 0) == 0)
+            {
+                result = "{\"Data\":" + result + "}";
+            }
+            if (result == "" || result == null)
+            {
+                result = "{}";
+            }
+            return Content("{  \"Message\": \"\", \"Result\":" + result + " }");
+        }
+        /// <summary>
+        /// 使用Json.net进行对象日期格式化
+        /// </summary>
+        /// <param name="o">需要序列化的对象</param>
+        /// <param name="dateformat">日期格式</param>
+        /// <returns></returns>
+        protected ContentResult FormatResult(object o, string dateformat)
+        {
+            Response.ContentType = "application/json;charset=UTF-8";//设置ContentType为json格式
+            IsoDateTimeConverter timeFormat = new IsoDateTimeConverter { DateTimeFormat =dateformat };
+            string result = JsonConvert.SerializeObject(o, Newtonsoft.Json.Formatting.Indented, timeFormat).Replace("\r\n", "");
+            return Content(result);
+        }
+        protected ContentResult FormatResult(object o)
+        {
+            return FormatResult(o, "yyyy-mm-dd HH:mm:ss");
+        }
+    }
+}
