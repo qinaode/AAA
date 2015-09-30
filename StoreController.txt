@@ -1,0 +1,146 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel.Channels;
+using System.Text;
+using System.Web;
+using System.Web.Mvc;
+using GuoPuO2O.Entity.Api;
+using GuoPuO2O.Entity;
+using GuoPuO2O.Service.Customer;
+using GuoPuSoft.Utility.Helper;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using GuoPuO2O.Entity.Store;
+using GuoPuO2O.Service.Store;
+using GuoPuO2O.Service.Product;
+
+
+namespace GuoPuO2O.AppService.Controllers
+{
+    public class StoreController : BaseController
+    {
+        /// <summary>
+        /// 根据用户当前地理位置获取附近商家
+        /// </summary>
+        /// <param name="CityID">城市ID</param>
+        /// <param name="Lon">地理位置经度</param>
+        /// <param name="Lat">地理位置纬度</param>
+        /// <param name="PageSize">页大小</param>
+        /// <param name="PageNum">当前页</param>
+        /// <returns></returns>
+        [HttpGet]
+        public ActionResult GetStoreListByPosition(int? CityID,float? Lon,float? Lat,int? PageSize=10,int? PageNum=1)
+        {
+         
+            BaseResult result = new BaseResult();
+            result.Command = "GetStoreListByPosition";
+            #region 参数检测
+            result.Code = "1";
+            if (CityID == null)
+            {
+                result.Message = "未传入CityID";
+                return FormatResult(result);
+            }
+            if (Lon == null)
+            {
+                result.Message = "未传入Lon";
+                return FormatResult(result);
+            }
+            if (Lat == null)
+            {
+                result.Message = "未传入Lat";
+                return FormatResult(result);
+            }
+           
+            #endregion
+            result.Code = "0";
+            result.Message = "ok";
+
+            string StoreWhere = "";
+            string StoreOrderBy = "";
+            List<StoreInfoEX> entity = StoreService.GetStoreListByWhere(CityID.Value, Lon.Value, Lat.Value, PageSize.Value, PageNum.Value, StoreWhere, StoreOrderBy);
+            result.Result = entity.Select(m => new { 
+                m.SysNo,
+                m.StoreName,
+                m.SalePromotion,
+                m.Description,
+                m.Address,
+                m.CellPhone,
+                m.Dis,
+                ImageUrl=string.IsNullOrEmpty( m.ImageUrl)?"": ImageDomin+ m.ImageUrl
+            });
+            return FormatResult(result);
+        }
+        /// <summary>
+        /// 根据关键字查询附近的商家和商品
+        /// </summary>
+        /// <param name="CityID">城市ID</param>
+        /// <param name="Lon">当前地理位置经度</param>
+        /// <param name="Lat">当前地理位置纬度</param>
+        /// <param name="Key">查询关键字</param>
+        /// <param name="PageSize">页大小</param>
+        /// <param name="PageNum">页码</param>
+        /// <returns></returns>
+        [HttpGet]
+        public ActionResult SearchStoreAndProduct(int? CityID, float? Lon, float? Lat, string Key, int? PageSize = 10, int? PageNum = 1)
+        {
+            BaseResult result = new BaseResult();
+            result.Command = "SearchStoreAndProduct";
+            #region 参数检测
+            result.Code = "1";
+            if (CityID == null)
+            {
+                result.Message = "未传入CityID";
+                return FormatResult(result);
+            }
+            if (Lon == null)
+            {
+                result.Message = "未传入Lon";
+                return FormatResult(result);
+            }
+            if (Lat == null)
+            {
+                result.Message = "未传入Lat";
+                return FormatResult(result);
+            }
+            if (string.IsNullOrEmpty(Key))
+            {
+                result.Message = "未传入查询关键字";
+                return FormatResult(result);
+            }
+
+            #endregion
+            string StoreWhere = "StoreName like '%"+Key+"%'";
+            string StoreOrderBy = "";
+
+            string ProductWhere = "Name like '%" + Key + "%'";
+            string ProductOrderBy = "";
+            List<StoreInfoEX> storeList = StoreService.GetStoreListByWhere(CityID.Value,Lon.Value, Lat.Value, PageSize.Value, PageNum.Value, StoreWhere, StoreOrderBy);
+            List<ProductInfoEx> productList = ProductService.GetProductByWhere(CityID.Value, Lon.Value, Lat.Value, PageSize.Value, PageNum.Value, ProductWhere, ProductOrderBy);
+
+            result.Result = new
+            {
+                storeList = storeList.Select(m => new
+                {
+                    m.StoreName,
+                    m.Address,
+                    m.CellPhone,
+                    m.Description,
+                    m.Dis,
+                    m.SalePromotion,
+                    ImageUrl= string.IsNullOrEmpty(m.ImageUrl)?"": ImageDomin+m.ImageUrl
+                }),
+                productList = productList.Select(m => new { 
+                    m.Name,
+                    m.StoreName,
+                    PicUrl = string.IsNullOrEmpty(m.PicUrl) ? "" : ImageDomin + m.PicUrl
+                })
+            };
+            result.Code = "0";
+            result.Message = "ok";
+            return FormatResult(result);
+        }
+        
+    }
+}
